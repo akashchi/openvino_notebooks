@@ -1,4 +1,4 @@
 labeler-strategy: append  # only add new labels, never remove already assigned
 
 "new notebook":
-  - files: notebooks/**/*.ipynb
+  files: notebooks/**/*.ipynb
