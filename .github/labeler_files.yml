@@ -15,5 +15,5 @@ dependencies:
   files:
     added: "**/*requirements*"
     modified: 
-      "**/*requirements*"
-      "**/Pipfile*"
+      - "**/*requirements*"
+      - "**/Pipfile*"
