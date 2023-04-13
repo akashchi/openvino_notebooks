@@ -19,7 +19,7 @@ jobs:
         include-title: 1
         sync-labels: 1
     - name: Add labels (Changed Files)
-      uses: akashchi/pr-labeler@v1.7
+      uses: akashchi/pr-labeler@v1.8
       with:
           token: "${{ secrets.GITHUB_TOKEN }}"
           config: ".github/labeler_files.yml"
