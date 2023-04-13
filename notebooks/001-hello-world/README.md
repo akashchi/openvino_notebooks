@@ -13,3 +13,4 @@ This notebook demonstrates usage of [MobileNet V3](https://github.com/openvinoto
 ## Installation Instructions
 
 If you have not installed all required dependencies, follow the [Installation Guide](../../README.md).
+sample
