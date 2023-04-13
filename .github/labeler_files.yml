@@ -1,18 +1,4 @@
 labeler-strategy: append  # only add new labels, never remove already assigned
 
 "new notebook":
-  - files: 
-      added: notebooks/**/*.ipynb
-enhancement:
-  - files:
-      modified: notebooks/**/*
-documentation:
-  - files:
-      modified: "**/*.md"
-      added: "**/*.md"
-dependencies:
-  - files:
-      added: "**/*requirements*"
-      modified: 
-        - "**/*requirements*"
-        - "**/Pipfile*"
+  - files: notebooks/**/*.ipynb
