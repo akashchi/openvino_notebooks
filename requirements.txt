@@ -29,7 +29,7 @@ ipywidgets
 ipykernel>=5.*
 ipython>=7.16.3
 
-
+#
 # others
 numpy>=1.21.0
 opencv-python
