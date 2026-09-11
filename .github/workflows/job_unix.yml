@@ -55,6 +55,7 @@ env:
   MOUNT_CACHE: /mount/testdata0/ov_notebooks
   # Allow NLTK to download data through the configured proxy (SSRF opt-in).
   NLTK_ALLOW_PROXIED_URLOPEN: "1"
+  NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
 
 
 jobs:
@@ -96,7 +97,7 @@ jobs:
         run: update-ca-certificates
 
       - name: Checkout repository
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
 
       - name: Get changed files
         if: ${{ inputs.test_only_changed }}
