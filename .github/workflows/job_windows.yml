@@ -159,7 +159,7 @@ jobs:
       - name: Install python dependencies
         shell: pwsh
         env:
-          # Absorb transient network/proxy blips instead of skipping an index page.
+          # Absorb transient network/proxy blips at the connection level.
           PIP_RETRIES: "5"
           PIP_DEFAULT_TIMEOUT: "60"
         run: |
@@ -167,16 +167,23 @@ jobs:
 
           function Invoke-Pip {
             param([Parameter(ValueFromRemainingArguments = $true)] [string[]]$PipArgs)
-            $log = & python3 -m pip @PipArgs 2>&1
-            $log | ForEach-Object { Write-Host $_ }
-            if ($LASTEXITCODE -ne 0) {
-              throw "pip failed with exit code $LASTEXITCODE"
+            $maxAttempts = 5
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              $log = & python3 -m pip @PipArgs 2>&1
+              $log | ForEach-Object { Write-Host $_ }
+              # A proxy returning an unexpected Content-Type makes pip skip the
+              # index page; that skip is not covered by PIP_RETRIES and can lead
+              # to a spurious resolution failure, so retry the whole command.
+              $skippedPage = ($log -match "Skipping page .* because the GET request got Content-Type").Count -gt 0
+              if ($LASTEXITCODE -eq 0 -and -not $skippedPage) {
+                return
+              }
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "pip attempt $attempt failed (exit $LASTEXITCODE, skipped index page: $skippedPage); retrying in 15s..."
+                Start-Sleep -Seconds 15
+              }
             }
-            # pip only warns (does not fail) when a proxy returns an unexpected
-            # Content-Type; treat it as fatal to avoid a partial install.
-            if ($log -match "Skipping page .* because the GET request got Content-Type") {
-              throw "pip skipped an index page due to a network/proxy error; failing to avoid a partial install (re-run to use the mounted cache)"
-            }
+            throw "pip failed after $maxAttempts attempts"
           }
 
           Invoke-Pip install --upgrade setuptools wheel
