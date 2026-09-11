@@ -86,6 +86,13 @@ jobs:
             core.exportVariable('TEST_REPORT_DIR', testReportDir);
             core.exportVariable('GIT_CLONE_PROTECTION_ACTIVE', 'false');
 
+      # Add the proxy root CA (mounted at
+      # /usr/local/share/ca-certificates) to it before cloning over HTTPS,
+      # otherwise git fails with "server certificate verification failed"
+      - name: Add proxy CA certificate to system trust store
+        if: ${{ env.TEST_DEVICE == 'gpu' }}
+        run: update-ca-certificates
+
       - name: Checkout repository
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 

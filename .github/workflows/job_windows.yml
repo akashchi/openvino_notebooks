@@ -157,9 +157,30 @@ jobs:
           curl -o notebooks/paddle-ocr-webcam/model/ch_PP-OCRv3_rec_infer.tar 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/paddle-ocr/ch_PP-OCRv3_rec_infer.tar'
 
       - name: Install python dependencies
+        shell: pwsh
+        env:
+          # Absorb transient network/proxy blips instead of skipping an index page.
+          PIP_RETRIES: "5"
+          PIP_DEFAULT_TIMEOUT: "60"
         run: |
-          python3 -m pip install --upgrade setuptools wheel
-          python3 -m pip install -r .ci/dev-requirements.txt
+          $ErrorActionPreference = "Stop"
+
+          function Invoke-Pip {
+            param([Parameter(ValueFromRemainingArguments = $true)] [string[]]$PipArgs)
+            $log = & python3 -m pip @PipArgs 2>&1
+            $log | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) {
+              throw "pip failed with exit code $LASTEXITCODE"
+            }
+            # pip only warns (does not fail) when a proxy returns an unexpected
+            # Content-Type; treat it as fatal to avoid a partial install.
+            if ($log -match "Skipping page .* because the GET request got Content-Type") {
+              throw "pip skipped an index page due to a network/proxy error; failing to avoid a partial install (re-run to use the mounted cache)"
+            }
+          }
+
+          Invoke-Pip install --upgrade setuptools wheel
+          Invoke-Pip install -r .ci/dev-requirements.txt
           python3 -m ipykernel install --user --name openvino_env
 
       # Needed for notebooks that download models from Hugging Face Hub
