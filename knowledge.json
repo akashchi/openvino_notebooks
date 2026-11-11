@@ -1,8 +1,47 @@
 {
  "schema_version": 1,
  "signatures": {
+  "056c5d85794f": {
+   "attempts": [
+    {
+     "action": "Draft PR makes the aloha-act notebook clone the main branch of edge-ai-suites where act-sample and patches/ov still exist.",
+     "confidence": "medium",
+     "date": "2026-11-10",
+     "dead_ends": "none; could not run the clone because network access was blocked, layout was verified through the GitHub API only.",
+     "next_step": "After the clone works, check later cells (patch application, sim_insertion_scripted.zip download, ov_convert.py run) for new failures and consider pinning a main commit SHA.",
+     "nightly_run_id": 42727913139,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42727913139",
+     "outcome": "pr",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42989522683",
+     "root_cause": "open-edge-platform/edge-ai-suites default branch became docs-only, so sparse checkout of robotics-ai-suite/pipelines/act-sample matched nothing; fallback plain clone of tonyzhaozh/act lacks ov_convert.py and the patches."
+    }
+   ],
+   "category": "cell_error",
+   "error_class": "other",
+   "exception_type": "FileNotFoundError",
+   "first_seen": "2026-11-10",
+   "headline": "FileNotFoundError: ov_convert.py not found: /__w/openvino_notebooks/openvino_notebooks/notebooks/aloha-act/edge-ai-suites/robotics-ai-suite/pipelines/act-sample/act/ov_convert.py",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-10",
+   "notebooks": [
+    "notebooks/aloha-act/aloha-act.ipynb"
+   ]
+  },
   "10b5fae3267c": {
    "attempts": [
+    {
+     "action": "Filed one issue listing all 10 pairs with the stalled cell and per-notebook leads; no code change.",
+     "confidence": "low",
+     "date": "2026-11-10",
+     "dead_ends": "Generic signature so no shared fix; logs hold no output from stalled cells; none of the six notebooks is in skipped_notebooks.yml; notebooks could not be run.",
+     "next_step": "Re-run yolov26-obb with per-cell timing on cpu py3.11 and a GPU runner to find the slow cell, and compare py3.13 against py3.11/3.12 for gemma4 and minicpm-v-4.7.",
+     "nightly_run_id": 42727913139,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42727913139",
+     "outcome": "issue",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42989522683",
+     "root_cause": "unknown: bare 3600s treon timeouts without traceback across six unrelated notebooks; yolov26-obb stalls at cell 10 on CPU and cell 26 (nncf.quantize) on GPU, other notebooks stall in model compile or inference cells."
+    },
     {
      "action": "Filed one issue listing all 14 pairs with per-notebook leads; no code change.",
      "confidence": "low",
@@ -19,20 +58,61 @@
    "category": "timeout",
    "error_class": "timeout",
    "exception_type": "",
-   "first_seen": "2026-11-11",
+   "first_seen": "2026-11-10",
    "headline": "Timeout reached (3600s), process killed",
-   "investigations": 1,
+   "investigations": 2,
    "kind": "error",
    "last_seen": "2026-11-11",
    "notebooks": [
-    "notebooks/catvton/catvton.ipynb",
+    "notebooks/darkir-image-restoration/darkir-image-restoration.ipynb",
     "notebooks/gemma4/gemma4.ipynb",
+    "notebooks/inpainting-genai/inpainting-genai.ipynb",
     "notebooks/minicpm-v-4.7/minicpm-v-4.7.ipynb",
+    "notebooks/omnivoice/omnivoice.ipynb",
     "notebooks/yolov26-optimization/yolov26-obb.ipynb"
+   ]
+  },
+  "2255c0ee2124": {
+   "attempts": [
+    {
+     "action": "Draft PR adds a sentencepiece<0.2.3 pin to the pip_install cell of the parler-tts notebook.",
+     "confidence": "medium",
+     "date": "2026-11-10",
+     "dead_ends": "Could not reproduce or check the PyPI 0.2.2 wheel: pip and network probes were blocked; upstream source tags v0.2.1 and v0.2.2 were checked instead.",
+     "next_step": "If the nightly still fails after the pin, check the published sentencepiece 0.2.2 wheel gencode and consider protobuf>=5.26 with an audiotools override.",
+     "nightly_run_id": 42727913139,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42727913139",
+     "outcome": "pr",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42989522683",
+     "root_cause": "sentencepiece 0.2.3 gencode imports google.protobuf.runtime_version (protobuf 5.26+), but descript-audiotools pulled by parler-tts caps protobuf below 5, so protobuf 4.25.9 is installed."
+    }
+   ],
+   "category": "cell_error",
+   "error_class": "dependency",
+   "exception_type": "ImportError",
+   "first_seen": "2026-11-10",
+   "headline": "ImportError: cannot import name 'runtime_version' from 'google.protobuf' (/__w/openvino_notebooks/openvino_notebooks/notebooks/parler-tts-text-to-speech/.venv/lib/python3.11/site-packages/google/protobuf/__init__.py)",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-10",
+   "notebooks": [
+    "notebooks/parler-tts-text-to-speech/parler-tts-text-to-speech.ipynb"
    ]
   },
   "53783afa3cdf": {
    "attempts": [
+    {
+     "action": "Filed an issue with evidence and next steps; no code change.",
+     "confidence": "medium",
+     "date": "2026-11-10",
+     "dead_ends": "Changing request headers is pointless since download_file already sends a Mozilla User-Agent; an alternative checkpoint mirror could not be verified because network access from the sandbox was blocked.",
+     "next_step": "Compare curl results for the checkpoint URL on a GPU runner and a CPU runner; then allow ModelScope on the GPU runner network or host the checkpoints on a reachable mirror and update the download cell.",
+     "nightly_run_id": 42727913139,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42727913139",
+     "outcome": "issue",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42989522683",
+     "root_cause": "ModelScope returns 403 for the checkpoint download only on dgpu and igpu configs while cpu configs pass with identical packages and the same Mozilla User-Agent; likely a network-level block of GPU runner egress, not a notebook bug."
+    },
     {
      "action": "Filed an issue with evidence and next steps; no code change.",
      "confidence": "medium",
@@ -49,9 +129,9 @@
    "category": "cell_error",
    "error_class": "other",
    "exception_type": "Exception",
-   "first_seen": "2026-11-11",
+   "first_seen": "2026-11-10",
    "headline": "Exception: 403 Client Error: Forbidden for url: https://www.modelscope.cn/models/wangg12/GDRNPP/resolve/master/yolox/bop_pbr/yolox_x_640_augCozyAAEhsv_ranger_30_epochs_lmo_pbr_lmo_bop_test/model_final.pth",
-   "investigations": 1,
+   "investigations": 2,
    "kind": "error",
    "last_seen": "2026-11-11",
    "notebooks": [
@@ -137,6 +217,34 @@
    "last_seen": "2026-11-11",
    "notebooks": [
     "notebooks/llm-agent-functioncall/llm-agent-functioncall-qwen.ipynb"
+   ]
+  },
+  "db0467f22081": {
+   "attempts": [
+    {
+     "action": "Filed one issue covering both pairs with env differences, history and leads; no code change.",
+     "confidence": "low",
+     "date": "2026-11-10",
+     "dead_ends": "Notebooks could not be run to reproduce; numpy/contourpy differences on py3.13 are confounded with the Python version; no crash message in logs to separate OpenCV threading, GPU plugin or OOM causes.",
+     "next_step": "Run async-api on py3.13 with PYTHONFAULTHANDLER=1 and check runner OOM logs, retry with numpy<2.5, and re-run inpainting-genai cell 20 on an igpu runner with GPU plugin logging and memory monitoring.",
+     "nightly_run_id": 42727913139,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42727913139",
+     "outcome": "issue",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42989522683",
+     "root_cause": "unknown: kernel died without a Python traceback or segfault/OOM message; async-api only fails on cpu py3.13 (passes on py3.11) in the AsyncInferQueue plus VideoPlayer thread cell, inpainting-genai dies in the GenAI InpaintingPipeline generation cell on igpu."
+    }
+   ],
+   "category": "kernel_died",
+   "error_class": "crash",
+   "exception_type": "DeadKernelError",
+   "first_seen": "2026-11-10",
+   "headline": "DeadKernelError: Kernel died",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-10",
+   "notebooks": [
+    "notebooks/async-api/async-api.ipynb",
+    "notebooks/inpainting-genai/inpainting-genai.ipynb"
    ]
   }
  }
