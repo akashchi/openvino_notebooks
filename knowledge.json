@@ -1,0 +1,143 @@
+{
+ "schema_version": 1,
+ "signatures": {
+  "10b5fae3267c": {
+   "attempts": [
+    {
+     "action": "Filed one issue listing all 14 pairs with per-notebook leads; no code change.",
+     "confidence": "low",
+     "date": "2026-11-11",
+     "dead_ends": "No traceback to trace; could not run the notebooks; catvton is in skipped_notebooks.yml yet ran in the nightly, reason not determined.",
+     "next_step": "Re-run yolov26-obb with per-cell timing on a cpu py3.11 runner to find the first slow cell, then check why the catvton skip entry is not applied and compare py3.13 against py3.11 for gemma4 and minicpm-v-4.7.",
+     "nightly_run_id": 42931134846,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42931134846",
+     "outcome": "issue",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42986891797",
+     "root_cause": "unknown: bare 3600s treon timeouts without exception across four unrelated notebooks (catvton, gemma4, minicpm-v-4.7, yolov26-obb) on CPU, Windows and GPU configs; logs stop at a cell start."
+    }
+   ],
+   "category": "timeout",
+   "error_class": "timeout",
+   "exception_type": "",
+   "first_seen": "2026-11-11",
+   "headline": "Timeout reached (3600s), process killed",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-11",
+   "notebooks": [
+    "notebooks/catvton/catvton.ipynb",
+    "notebooks/gemma4/gemma4.ipynb",
+    "notebooks/minicpm-v-4.7/minicpm-v-4.7.ipynb",
+    "notebooks/yolov26-optimization/yolov26-obb.ipynb"
+   ]
+  },
+  "53783afa3cdf": {
+   "attempts": [
+    {
+     "action": "Filed an issue with evidence and next steps; no code change.",
+     "confidence": "medium",
+     "date": "2026-11-11",
+     "dead_ends": "download_file already sends a Mozilla User-Agent so header changes would not help; could not verify an alternative mirror for the checkpoints from the sandbox.",
+     "next_step": "Run curl against the checkpoint URL from a GPU runner and a CPU runner to confirm the block; then host the checkpoints on a reachable mirror and update the notebook download cell.",
+     "nightly_run_id": 42931134846,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42931134846",
+     "outcome": "issue",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42986891797",
+     "root_cause": "ModelScope returns 403 Forbidden for the checkpoint download only on dgpu and igpu configs (cpu config passes with identical packages); likely an IP or geo block of GPU runner egress, not a notebook bug."
+    }
+   ],
+   "category": "cell_error",
+   "error_class": "other",
+   "exception_type": "Exception",
+   "first_seen": "2026-11-11",
+   "headline": "Exception: 403 Client Error: Forbidden for url: https://www.modelscope.cn/models/wangg12/GDRNPP/resolve/master/yolox/bop_pbr/yolox_x_640_augCozyAAEhsv_ranger_30_epochs_lmo_pbr_lmo_bop_test/model_final.pth",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-11",
+   "notebooks": [
+    "notebooks/gdrnpp-full-pipeline/gdrnpp-full-pipeline.ipynb"
+   ]
+  },
+  "5b12bfcacbb0": {
+   "attempts": [
+    {
+     "action": "Filed an issue listing both hypotheses and a hardening plan for load_image; no code change.",
+     "confidence": "low",
+     "date": "2026-11-11",
+     "dead_ends": "Adding raise_for_status would only improve the message and not fix the failure; removing the path.exists guard is unverifiable without runner access; no log evidence of the response status.",
+     "next_step": "Check the response and Content-Type of the cat image URL from a failing GPU runner and file the leftover cat.png in the persisted workspace; then harden load_image or change the image URL.",
+     "nightly_run_id": 42931134846,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42931134846",
+     "outcome": "issue",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42986891797",
+     "root_cause": "unknown: load_image saves an unchecked HTTP response as cat.png, so a non-image body (proxy page or stale cached file) fails in PIL; only the proxied self-hosted GPU runners fail, the CPU config passes with identical packages."
+    }
+   ],
+   "category": "cell_error",
+   "error_class": "other",
+   "exception_type": "UnidentifiedImageError",
+   "first_seen": "2026-11-11",
+   "headline": "UnidentifiedImageError: cannot identify image file 'cat.png'",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-11",
+   "notebooks": [
+    "notebooks/lfm3/lfm3.ipynb"
+   ]
+  },
+  "62840b049cd2": {
+   "attempts": [
+    {
+     "action": "Filed an issue marked as suspected transient; no code change (suspected-transient label does not exist in the repo).",
+     "confidence": "medium",
+     "date": "2026-11-11",
+     "dead_ends": "Notebook code and library versions are not involved; retry or alternate model source cannot help without working name resolution on the runner.",
+     "next_step": "Check whether it recurs on the next nightly; if so, have the runner owners check DNS resolution of the proxy host on the igpu runner around the failure time.",
+     "nightly_run_id": 42931134846,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42931134846",
+     "outcome": "issue",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42986891797",
+     "root_cause": "The self-hosted igpu runner failed DNS resolution of its own proxy host, so the Hugging Face model lookup raised ProxyError before any request left the machine; passed on the 3 previous nights and on the cpu config tonight with identical packages."
+    }
+   ],
+   "category": "cell_error",
+   "error_class": "network",
+   "exception_type": "ProxyError",
+   "first_seen": "2026-11-11",
+   "headline": "ProxyError: (MaxRetryError('HTTPSConnectionPool(host=\\'huggingface.co\\', port=443): Max retries exceeded with url: /api/models/OpenVINO/Qwen3-0.6B-int4-ov (Caused by ProxyError(\\'Unable to connect to proxy\\', NameResolutionError(\"HTTPSConnection(host=\\'proxy-dmz.intel.com\\', port=912): Failed to re\u2026",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-11",
+   "notebooks": [
+    "notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb"
+   ]
+  },
+  "7141ef627a4f": {
+   "attempts": [
+    {
+     "action": "Draft PR adds python-dotenv to the existing pip install cell of llm-agent-functioncall-qwen.ipynb.",
+     "confidence": "medium",
+     "date": "2026-11-11",
+     "dead_ends": "Could not identify which package previously supplied dotenv; checked-out notebook pins (transformers 4.57.6, torch 2.8) differ from the failing environment packages, so the notebook at the nightly commit may differ from the checkout.",
+     "next_step": "Compare the notebook at the nightly commit with the checkout and check the full pip resolution log to find the dropped transitive dependency; look for further undeclared Qwen-Agent imports.",
+     "nightly_run_id": 42931134846,
+     "nightly_run_url": "https://github.com/openvinotoolkit/openvino_notebooks/actions/runs/42931134846",
+     "outcome": "pr",
+     "remediator_run_url": "https://github.com/akashchi/openvino_notebooks/actions/runs/42986891797",
+     "root_cause": "Qwen-Agent v0.0.18 imports dotenv in mcp_manager.py but its setup.py does not declare python-dotenv; the notebook relied on a transitive install that was absent in the nightly 2026-11-11 environment."
+    }
+   ],
+   "category": "cell_error",
+   "error_class": "dependency",
+   "exception_type": "ModuleNotFoundError",
+   "first_seen": "2026-11-11",
+   "headline": "ModuleNotFoundError: No module named 'dotenv'",
+   "investigations": 1,
+   "kind": "error",
+   "last_seen": "2026-11-11",
+   "notebooks": [
+    "notebooks/llm-agent-functioncall/llm-agent-functioncall-qwen.ipynb"
+   ]
+  }
+ }
+}
