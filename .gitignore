@@ -79,6 +79,7 @@ env.bak/
 venv.bak/
 openvino_env/
 openvino_env*/
+*code-workspace*
 
 
 # Spyder project settings
@@ -101,7 +102,14 @@ dmypy.json
 
 # Notebook temporal files
 notebooks/*/output/**
+notebooks/*/model/**
+notebooks/*/data/**
+notebooks/*/cache/**
+notebooks/*/.cache/**
 
-# cache directory
-notebooks/cache/*
+# Local pip cache directories
+pipcache/
+pipcache_openvino/
 
+# PySpelling generated dictionary
+.ci/spellcheck/dictionary

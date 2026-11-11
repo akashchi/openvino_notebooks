@@ -1,15 +1,155 @@
-import sys
+import argparse
+import ast
+import re
 from pathlib import Path
 import nbformat
 import nbconvert
 from traitlets.config import Config
 
-
 # Notebooks that are excluded from the CI tests
-EXCLUDED_NOTEBOOKS = ["data-preparation-ct-scan.ipynb"]
+EXCLUDED_NOTEBOOKS = ["data-preparation-ct-scan.ipynb", "pytorch-monai-training.ipynb"]
+
+DEVICE_WIDGET = "device = widgets.Dropdown("
+DEVICE_WIDGET_NEW = "device_widget("
 
 
-def patch_notebooks(notebooks_dir):
+def disable_gradio_debug(nb, notebook_path):
+    found = False
+    for cell in nb["cells"]:
+        if "gradio" in cell["source"] and "launch(" in cell["source"]:
+            found = True
+            cell["source"] = ""
+
+    if found:
+        print(f"Disabled gradio for {notebook_path}")
+    return nb
+
+
+def disable_skip_ext(nb, notebook_path, test_device=""):
+    found = False
+
+    skip_for_device = None if test_device else False
+    for cell in nb["cells"]:
+        if test_device is not None and skip_for_device is None:
+            if (
+                'skip_for_device = "{}" in device.value'.format(test_device.upper()) in cell["source"]
+                and (
+                    "to_quantize = widgets.Checkbox(value=not skip_for_device" in cell["source"]
+                    or "to_quantize = quantization_widget(not skip_for_device" in cell["source"]
+                )
+                or ("to_quantize = quantization_widget(False" in cell["source"])
+            ):
+                skip_for_device = True
+
+        if "%%skip" in cell["source"]:
+            found = True
+            if not skip_for_device:
+                cell["source"] = re.sub(r"%%skip.*.\n", "\n", cell["source"])
+            else:
+                cell["source"] = ""
+    if found:
+        print(f"Disabled skip extension mode for {notebook_path}")
+    return nb
+
+
+def remove_ov_install(cell):
+    updated_lines = []
+
+    def has_additional_deps(str_part):
+        if "pip_install(" in str_part:
+            return False
+        if "%pip" in str_part:
+            return False
+        if "install" in str_part:
+            return False
+        if str_part.startswith("-") or str_part.startswith('"-'):
+            return False
+        if str_part.startswith("https://") or str_part.startswith('"https://'):
+            return False
+        if ")" == str_part:
+            return False
+        return True
+
+    lines = cell["source"].replace("pip_install(", "pip_install( ").split("\n")
+    for line in lines:
+        if "openvino" in line:
+            if "optimum-cli" in line or line.startswith("#") or "-openvino" in line:
+                updated_lines.append(line)
+                continue
+            updated_line_content = []
+            empty = True
+            package_found = False
+            for part in line.split(" "):
+                if "openvino-dev" in part and not "https://github.com/openvino-dev-samples/" in part:
+                    if part.endswith(")"):
+                        updated_line_content.append(")")
+                    package_found = True
+                    continue
+                if "openvino-nightly" in part:
+                    package_found = True
+                    if part.endswith(")"):
+                        updated_line_content.append(")")
+                    continue
+                if "openvino-tokenizers" in part or "openvino_tokenizers" in part:
+                    package_found = True
+                    if part.endswith(")"):
+                        updated_line_content.append(")")
+                    continue
+                if "openvino-genai" in part or "openvino_genai" in part:
+                    package_found = True
+                    if part.endswith(")"):
+                        updated_line_content.append(")")
+                    continue
+                if "openvino>" in part or "openvino=" in part or "openvino" == part:
+                    if part.endswith(")"):
+                        updated_line_content.append(")")
+                    package_found = True
+                    continue
+                if empty:
+                    empty = not has_additional_deps(part)
+                updated_line_content.append(part)
+
+            if package_found:
+                if not empty:
+                    updated_line = " ".join(updated_line_content)
+                    if line.startswith(" "):
+                        for char in line:
+                            if char != " ":
+                                break
+                            # keep indention
+                            updated_line = " " + updated_line
+                    updated_lines.append(updated_line + "\n# " + line)
+            else:
+                updated_lines.append(line)
+        else:
+            updated_lines.append(line)
+    call_start = None
+    for index, line in enumerate(updated_lines):
+        if line.lstrip().startswith("pip_install("):
+            call_start = index
+        elif call_start is not None and line.strip() == ")":
+            call_lines = updated_lines[call_start : index + 1]
+            if any("openvino" in part for part in call_lines if part.lstrip().startswith("#") or "\n#" in part):
+                indent = call_lines[0][: len(call_lines[0]) - len(call_lines[0].lstrip())]
+                call_source = "\n".join(part[len(indent) :] if part.startswith(indent) else part for part in call_lines)
+                call = ast.parse(call_source).body[0].value
+                if not call.keywords and all(isinstance(arg, ast.Constant) and isinstance(arg.value, str) for arg in call.args):
+                    option_value = False
+                    has_requirement = False
+                    for arg in call.args:
+                        if option_value:
+                            option_value = False
+                        elif arg.value in ("--extra-index-url", "--index-url", "--find-links", "-i", "-f"):
+                            option_value = True
+                        elif not arg.value.startswith("-"):
+                            has_requirement = True
+                    if not has_requirement and not option_value:
+                        updated_lines[call_start : index + 1] = [indent + "pass" if indent else ""] + [""] * (len(call_lines) - 1)
+            call_start = None
+    cell["source"] = "\n".join(updated_lines)
+
+
+def patch_notebooks(notebooks_dir, test_device="", skip_ov_install=False):
     """
     Patch notebooks in notebooks directory with replacement values
     found in notebook metadata to speed up test execution.
@@ -17,7 +157,7 @@ def patch_notebooks(notebooks_dir):
     Github Actions CI.
 
     For example: change nr of epochs from 15 to 1 in
-    301-tensorflow-training-openvino-pot.ipynb by adding
+    tensorflow-training-openvino-nncf.ipynb by adding
     {"test_replace": {"epochs = 15": "epochs = 1"} to the cell
     metadata of the cell that contains `epochs = 15`
 
@@ -29,45 +169,61 @@ def patch_notebooks(notebooks_dir):
     nb_convert_config.NotebookExporter.preprocessors = ["nbconvert.preprocessors.ClearOutputPreprocessor"]
     output_remover = nbconvert.NotebookExporter(nb_convert_config)
     for notebookfile in Path(notebooks_dir).glob("**/*.ipynb"):
-        if (
-            not str(notebookfile.name).startswith("test_")
-            and notebookfile.name not in EXCLUDED_NOTEBOOKS
-        ):
+        if ".venv" in notebookfile.parts:
+            continue
+        if not str(notebookfile.name).startswith("test_") and notebookfile.name not in EXCLUDED_NOTEBOOKS:
             nb = nbformat.read(notebookfile, as_version=nbformat.NO_CONVERT)
             found = False
+            device_found = False
             for cell in nb["cells"]:
+                if skip_ov_install and ("%pip" in cell["source"] or "pip_install(" in cell["source"]):
+                    remove_ov_install(cell)
+                if test_device and (DEVICE_WIDGET in cell["source"] or DEVICE_WIDGET_NEW in cell["source"]):
+                    device_found = True
+                    if not DEVICE_WIDGET_NEW in cell["source"]:
+                        cell["source"] = re.sub(
+                            r"value=.*,",
+                            f"value='{test_device.upper()}',",
+                            cell["source"],
+                        )
+                        cell["source"] = re.sub(
+                            r"options=",
+                            f"options=['{test_device.upper()}'] + ",
+                            cell["source"],
+                        )
+                        print(f"Replaced testing device to {test_device}")
+                    else:
+                        cell["source"] = re.sub(
+                            r"device_widget\(.*\)",
+                            f"device_widget(default='{test_device.upper()}', added=['{test_device.upper()}'])",
+                            cell["source"],
+                        )
                 replace_dict = cell.get("metadata", {}).get("test_replace")
                 if replace_dict is not None:
                     found = True
                     for source_value, target_value in replace_dict.items():
                         if source_value not in cell["source"]:
-                            raise ValueError(
-                                f"Processing {notebookfile} failed: {source_value} does not exist in cell"
-                            )
-                        cell["source"] = cell["source"].replace(
-                            source_value, target_value
-                        )
+                            raise ValueError(f"Processing {notebookfile} failed: {source_value} does not exist in cell")
+                        cell["source"] = cell["source"].replace(source_value, target_value)
                         cell["source"] = "# Modified for testing\n" + cell["source"]
-                        print(
-                            f"Processed {notebookfile}: {source_value} -> {target_value}"
-                        )
+                        print(f"Processed {notebookfile}: {source_value} -> {target_value}")
+            if test_device and not device_found:
+                print(f"No device replacement found for {notebookfile}")
             if not found:
                 print(f"No replacements found for {notebookfile}")
+            disable_gradio_debug(nb, notebookfile)
+            disable_skip_ext(nb, notebookfile, args.test_device)
             nb_without_out, _ = output_remover.from_notebook_node(nb)
             with notebookfile.with_name(f"test_{notebookfile.name}").open("w", encoding="utf-8") as out_file:
                 out_file.write(nb_without_out)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        # If this script is called without any arguments, patch notebooks
-        # in the current directory (recursively).
-        notebooks_dir = "."
-    else:
-        # If the script is called with a command line argument, it is expected
-        # to be the path to the notebooks directory
-        notebooks_dir = sys.argv[1]
-        if not Path(notebooks_dir).is_dir():
-            raise ValueError(f"'{notebooks_dir}' is not an existing directory")
-
-    patch_notebooks(notebooks_dir)
+    parser = argparse.ArgumentParser("Notebook patcher")
+    parser.add_argument("notebooks_dir", default=".")
+    parser.add_argument("-td", "--test_device", default="")
+    parser.add_argument("--skip_ov_install", action="store_true")
+    args = parser.parse_args()
+    if not Path(args.notebooks_dir).is_dir():
+        raise ValueError(f"'{args.notebooks_dir}' is not an existing directory")
+    patch_notebooks(args.notebooks_dir, args.test_device, args.skip_ov_install)

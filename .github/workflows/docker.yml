@@ -6,14 +6,15 @@ name: docker_treon
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '30 3 * * *'
+    - cron: '30 3 * * *'
   push:
     branches:
-    - 'main'
+      - 'main'
+      - 'latest'
     paths:
-      - "Dockerfile"
-      - ".docker/**"
-      - ".github/workflows/*.yml"
+      - 'Dockerfile'
+      - '.docker/**'
+      - '.github/workflows/*.yml'
       - '.github/workflows/.env'
       - 'notebooks/**.ipynb'
       - 'notebooks/**.py'
@@ -21,40 +22,79 @@ on:
       - '.ci/*requirements.txt'
   pull_request:
     branches:
-    - 'main'
-    - 'develop'
-    paths:
-      - "Dockerfile"
-      - ".docker/**"
-      - ".github/workflows/*.yml"
-      - '.github/workflows/.env'
-      - 'notebooks/**.ipynb'
-      - 'notebooks/**.py'
+      - 'main'
+      - 'latest'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  build_docker:
+  changes:
+    uses: ./.github/workflows/job_detect_changes.yml
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      files: |
+        Dockerfile
+        .docker/**
+        .github/workflows/*.yml
+        .github/workflows/.env
+        notebooks/**/*.ipynb
+        notebooks/**/*.py
+
+  test_docker:
+    needs: changes
+    if: ${{ needs.changes.outputs.relevant == 'true' }}
     strategy:
       fail-fast: false
-  
-    runs-on: ubuntu-20.04
+
+    runs-on: ubuntu-22.04
+    timeout-minutes: 205 # max + 3*std over the last 1660 successful runs
 
     steps:
-    - name: Maximize build space
-      run:  |
-            sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
-            sudo rm -rf /usr/share/dotnet # will release about 20GB if you don't need .NET
-            sudo rm -rf /opt/ghc
-            echo "Available storage:"
-            df -h
-    - uses: actions/checkout@v2
-    - name: Build Docker image
-      run: |
-        docker build . -t openvino_notebooks
-    - name: Test notebooks in Docker image
-      run: |
-        # Test script location: .docker/.s2i/bin/test
-        docker run --entrypoint /tmp/scripts/test openvino_notebooks
+      - name: Maximize build space
+        run: |
+          sudo rm -rf /usr/local/lib/android # will release about 10 GB if you don't need Android
+          sudo rm -rf /usr/share/dotnet # will release about 20GB if you don't need .NET
+          sudo rm -rf /opt/ghc
+          echo "Available storage:"
+          df -h
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+        with:
+          files: |
+            notebooks/*/**
+            requirements.txt
+
+      - name: List all changed files
+        run: |
+          touch .ci/test_notebooks.txt
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "$file was changed"
+            echo $file >> .ci/test_notebooks.txt
+          done
+        shell: bash
+      - name: Build Docker image
+        run: |
+          docker build . -t openvino_notebooks
+      - name: Test notebooks in Docker image
+        run: |
+          # Test script location: .docker/tests/test_precommit
+          docker run -v ${PWD}:/opt/app-root/openvino_notebooks --entrypoint /tmp/scripts/test_precommit openvino_notebooks
+
+  # Keep the required check successful when no relevant files changed.
+  build_docker:
+    needs: [changes, test_docker]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

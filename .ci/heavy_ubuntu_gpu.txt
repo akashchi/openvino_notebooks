@@ -1,0 +1,6 @@
+notebooks/grounded-segment-anything/grounded-segment-anything.ipynb
+notebooks/instant-id/instant-id.ipynb
+notebooks/mms-massively-multilingual-speech/mms-massively-multilingual-speech.ipynb
+notebooks/speech-recognition-quantization/speech-recognition-quantization-wav2vec2.ipynb
+notebooks/yolov11-quantization-with-accuracy-control/yolov11-quantization-with-accuracy-control.ipynb
+notebooks/zeroscope-text2video/zeroscope-text2video.ipynb

@@ -1,0 +1,61 @@
+name: Validate Notebooks Metadata
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'notebooks/**/*.ipynb'
+
+concurrency:
+  group: ${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate_notebooks_metadata:
+    runs-on: ubuntu-22.04
+    name: Validate notebooks metadata
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 20
+
+      - name: Get changed notebook files
+        id: get_changed_notebook_files
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const { commits } = context.payload.pull_request;
+            const gitDiffCommand = `git diff --name-only --relative=notebooks --diff-filter=d HEAD~${commits} -- *.ipynb ':!notebooks/utils'`;
+            const changedNotebooks = execSync(gitDiffCommand).toString().split('\n').filter(Boolean);
+            core.exportVariable('CHANGED_NOTEBOOKS', JSON.stringify(changedNotebooks));
+
+      - name: Install Node.js dependencies
+        working-directory: ./selector
+        shell: bash
+        run: npm ci
+
+      - name: Validate changed notebooks metadata
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { NotebookMetadataHandler } = await import('${{ github.workspace }}/selector/src/notebook-metadata/notebook-metadata-handler.js');
+            const changedNotebooks = JSON.parse(process.env.CHANGED_NOTEBOOKS);
+            const [error, metadataMarkdowns] = NotebookMetadataHandler.validateNotebooks(changedNotebooks);
+            core.summary.addHeading(`Modified Notebooks (${metadataMarkdowns.length})`, '2');
+            core.summary.addRaw(metadataMarkdowns.join('\n\n'));
+            core.summary.write();
+            if (error) {
+              core.setFailed(error);
+            }

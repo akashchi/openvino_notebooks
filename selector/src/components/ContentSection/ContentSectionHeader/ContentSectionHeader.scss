@@ -1,0 +1,45 @@
+@import '@spark-design/css/components/typography/index.css';
+
+.content-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+
+  .title-container {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+
+    .title {
+      margin: 0 0.5rem 0 0;
+    }
+
+    .reset-filters-button {
+      flex-shrink: 0;
+    }
+  }
+
+  &-actions {
+    display: flex;
+    flex-grow: 1;
+    justify-content: flex-end;
+
+    .edit-filters-button {
+      margin-right: 1rem;
+      flex-shrink: 0;
+    }
+
+    .notebooks-search {
+      max-width: 550px;
+      width: 100%;
+    }
+
+    .notebooks-sort {
+      margin-left: 1rem;
+      max-width: 200px;
+    }
+  }
+}
